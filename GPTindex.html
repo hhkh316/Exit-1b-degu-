@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>1-B 文化祭 グループ管理・安定版（2レーン）</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f4f6f8;color:#17202a;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif}
+button,input,select{font:inherit}button{border:0;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}
+.wrap{max-width:1000px;margin:auto;padding:18px}.head{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.head h1{margin:0;font-size:22px}.head input{flex:1;min-width:220px;padding:11px;border:1px solid #ccd3da;border-radius:10px}
+.primary{background:#1769e0;color:#fff}.danger{background:#d93025;color:#fff}.muted{background:#e9edf1}.status{margin:12px 0;padding:10px 12px;border-radius:10px;background:#fff;border:1px solid #e0e5e9}
+.control-notice{display:none;margin:10px 0;padding:12px;border-radius:10px;background:#fff4d6;border:1px solid #f0c36a;font-weight:700}
+.card{background:#fff;border:1px solid #e0e5e9;border-radius:16px;padding:16px;margin:14px 0;box-shadow:0 2px 8px #00000008}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.lane{min-width:0}.lane h2{margin:0 0 10px}.group{border:1px solid #dce2e7;border-radius:14px;padding:13px;margin:9px 0}.group-title{display:flex;justify-content:space-between;gap:8px;align-items:center}.stage{font-size:18px;font-weight:800}.timer{font-size:30px;font-weight:900;margin:8px 0}.row{display:flex;gap:7px;flex-wrap:wrap}.row>*{flex:0 0 auto}.small{font-size:13px;color:#68737d}.waiting{background:#fff7d6;border-color:#f0d77a}.finished{opacity:.82}.notice{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#17202a;color:#fff;padding:12px 18px;border-radius:12px;display:none;z-index:20}
+.display{display:none}.display-mode{background:#ffe45c;overflow:hidden}.display-mode .normal{display:none}.display-mode .display{display:block}.display-board{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px}.display-lane{font-size:clamp(32px,7vw,70px);font-weight:900}.display-team{font-size:clamp(48px,11vw,120px);font-weight:900}.display-stage{font-size:clamp(28px,6vw,60px);font-weight:800}.display-time{font-size:clamp(70px,18vw,180px);font-weight:900;line-height:1}.finish-banner{margin-top:18px;font-size:clamp(26px,5vw,55px);font-weight:900}
+.plane{position:fixed;left:-100px;top:12%;font-size:56px;animation:fly 10s linear infinite;pointer-events:none}.contrail{position:fixed;left:-200px;top:calc(12% + 38px);width:160px;border-top:6px dotted #fff;animation:fly 10s linear infinite;pointer-events:none}
+@keyframes fly{from{transform:translateX(-80px)}to{transform:translateX(calc(100vw + 180px))}}
+@media(max-width:700px){.grid{grid-template-columns:1fr}.wrap{padding:12px}}
+</style>
+</head>
+<body>
+<div class="normal wrap">
+  <div class="head">
+    <h1>🎪 1-B 文化祭 グループ管理</h1>
+    <input id="groupName" placeholder="グループ名（例：Aグループ）">
+    <button class="primary" onclick="addGroup()">追加</button>
+    <button class="danger" onclick="resetAllData()">🗑️ 全データを消去</button>
+  </div>
+  <div id="status" class="status">Firebase接続中…</div>
+  <div id="controlNotice" class="control-notice"></div>
+
+  <section class="card">
+    <h2>📊 状況</h2>
+    <div id="summary"></div>
+  </section>
+
+  <section class="card waiting">
+    <h2>🧍 待ち組</h2>
+    <div class="row">
+      <input id="waitingName" placeholder="待ち組の名前" style="flex:1;min-width:180px;padding:10px;border:1px solid #ccd3da;border-radius:10px">
+      <select id="waitingLane" style="padding:10px;border:1px solid #ccd3da;border-radius:10px">
+        <option value="A">Aレーン</option><option value="B">Bレーン</option>
+      </select>
+      <button class="primary" onclick="addWaiting()">待ちに追加</button>
+    </div>
+    <div id="waitingList"></div>
+  </section>
+
+  <section class="card">
+    <div class="grid">
+      <div class="lane"><h2>🅰️ レーンA</h2><div id="laneA"></div></div>
+      <div class="lane"><h2>🅱️ レーンB</h2><div id="laneB"></div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>🏁 終了済み</h2>
+    <div id="finished"></div>
+    <h3>🏆 ランキング</h3>
+    <div id="ranking"></div>
+  </section>
+
+  <div class="card small">
+    スタッフ画面：
+    <a href="https://kazumacosmos-ux.github.io/ib-exit-ticket/?page=staff" target="_blank">スタッフの方はこちら</a>
+  </div>
+</div>
+
+<div class="display">
+  <div class="plane">✈️</div><div class="contrail"></div>
+  <div class="display-board">
+    <div id="displayLane" class="display-lane"></div>
+    <div id="displayTeam" class="display-team">待機中</div>
+    <div id="displayStage" class="display-stage"></div>
+    <div id="displayTime" class="display-time">--:--</div>
+    <div id="displayFinish" class="finish-banner"></div>
+  </div>
+</div>
+
+<div id="notice" class="notice"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+<script>
+const firebaseConfig={
+ apiKey:"AIzaSyDxGXjcovsjKm5S2a-KicwYfCxplDzngk",
+ authDomain:"exit1b.firebaseapp.com",
+ databaseURL:"https://exit1b-default-rtdb.firebaseio.com",
+ projectId:"exit1b",
+ storageBucket:"exit1b.firebasestorage.app",
+ messagingSenderId:"165232048524",
+ appId:"1:165232048524:web:9e9817e8a2cb95e05ffea9"
+};
+firebase.initializeApp(firebaseConfig);
+const db=firebase.database();
+const groupsRef=db.ref("groups");
+const isDisplayMode=new URLSearchParams(location.search).get("display");
+let latestData={groups:[]},controlState={globalLocked:false,lanes:{A:{paused:false},B:{paused:false}}};
+const sessionId="main_"+Date.now()+"_"+Math.random().toString(36).slice(2);
+if(!isDisplayMode){
+ db.ref("presence/"+sessionId).set({page:"メイン管理",updatedAt:firebase.database.ServerValue.TIMESTAMP});
+ db.ref("presence/"+sessionId).onDisconnect().remove();
+ db.ref("control").on("value",s=>{controlState=normalizeControl(s.val());renderControlNotice();render();});
+}
+function normalizeControl(v){v=v||{};return{globalLocked:v.globalLocked===true,lanes:{A:{paused:v.lanes?.A?.paused===true},B:{paused:v.lanes?.B?.paused===true}}}}
+function normalizeGroups(v){
+ if(!v)return[];
+ if(Array.isArray(v))return v.filter(Boolean);
+ return Object.entries(v).map(([id,g])=>({...g,id}));
+}
+function isGroup(g){return g&&g.kind!=="waiting"&&g.name}
+function isWaiting(g){return g&&g.kind==="waiting"}
+function getLimitMs(g){return Math.max(0,Number(g.limitMs||0))}
+function getRemainingMs(g,now=Date.now()){
+ if(!g)return 0;
+ if(g.startAt)return Math.max(0,getLimitMs(g)-((now-g.startAt)+(g.elapsedBeforeStart||0)));
+ return Math.max(0,Number(g.remainingMs??g.limitMs??0));
+}
+function fmt(ms){ms=Math.max(0,Math.floor(ms/1000));return String(Math.floor(ms/60)).padStart(2,"0")+":"+String(ms%60).padStart(2,"0")}
+function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
+function laneGroups(lane){return latestData.groups.filter(g=>isGroup(g)&&g.lane===lane&&!g.finishedAt).sort((a,b)=>(a.order??a.createdAt??0)-(b.order??b.createdAt??0))}
+function finished(){return latestData.groups.filter(g=>isGroup(g)&&g.finishedAt).sort((a,b)=>(b.finishedAt||0)-(a.finishedAt||0))}
+function waiting(){return latestData.groups.filter(isWaiting).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0))}
+function renderControlNotice(){
+ const el=document.getElementById("controlNotice");if(!el||isDisplayMode)return;
+ const msgs=[];if(controlState.globalLocked)msgs.push("🔒 全体ロック中");
+ if(controlState.lanes.A.paused)msgs.push("⏸ レーンA休止中");
+ if(controlState.lanes.B.paused)msgs.push("⏸ レーンB休止中");
+ el.textContent=msgs.length?msgs.join("　")+"：状況モニターから解除できます。":"";
+ el.style.display=msgs.length?"block":"none";
+}
+async function canOperate(lane=null){
+ if(isDisplayMode)return true;
+ try{
+  const s=await db.ref("control").once("value"),c=normalizeControl(s.val());
+  controlState=c;renderControlNotice();
+  if(c.globalLocked){alert("🔒 現在、全体ロック中です。状況モニターから解除してください。");return false}
+  if(lane&&c.lanes[lane]?.paused){alert("⏸️ レーン"+lane+"は休止中です。状況モニターから再開してください。");return false}
+  return true;
+ }catch(e){alert("🔴 ロック状態を確認できないため、操作を中止しました。");return false}
+}
+function renderSummary(){
+ const gs=latestData.groups.filter(isGroup),active=gs.filter(g=>!g.finishedAt),w=waiting();
+ const times=active.map(g=>getRemainingMs(g)).filter(x=>x>0);
+ document.getElementById("summary").innerHTML=`発行 ${gs.length}組　／　待ち ${w.length}組　／　A ${laneGroups("A").length}/2　／　B ${laneGroups("B").length}/2<br><b>最短残り時間：</b>${times.length?fmt(Math.min(...times)):"--:--"}`;
+}
+function card(g){
+ const running=!!g.startAt,rem=getRemainingMs(g),status=g.pausedByLane?"⏸ レーン休止中":g.pausedAt?"⏸ 停止中":running?"▶ 実行中":"⏹ 未開始";
+ return `<div class="group">
+ <div class="group-title"><b>${esc(g.name)}</b><span class="small">${esc(g.lane||"")}レーン</span></div>
+ <div class="stage">ステージ ${Number(g.stage||1)}</div>
+ <div class="timer">${fmt(rem)} <span class="small">${status}</span></div>
+ <div class="row">
+  <button class="muted" onclick="act('${g.id}','minus')">−</button><button class="muted" onclick="act('${g.id}','plus')">＋</button>
+  <button class="primary" onclick="act('${g.id}',${running?"stop":"'start'"})">${running?"停止":"開始"}</button>
+  <button class="muted" onclick="act('${g.id}','resetStage')">ステージリセット</button>
+  <button class="muted" onclick="act('${g.id}','resetTimer')">タイマーリセット</button>
+  <button class="muted" onclick="act('${g.id}','setLimit')">時間設定</button>
+  <button class="muted" onclick="act('${g.id}','setLane')">レーン変更</button>
+  <button class="danger" onclick="act('${g.id}','delete')">削除</button>
+ </div></div>`;
+}
+function renderLanes(){document.getElementById("laneA").innerHTML=laneGroups("A").map(card).join("")||"<div class='small'>空き</div>";document.getElementById("laneB").innerHTML=laneGroups("B").map(card).join("")||"<div class='small'>空き</div>"}
+function renderFinished(){document.getElementById("finished").innerHTML=finished().map(g=>`<div class="group finished"><b>${esc(g.name)}</b>　${esc(g.lane||"")}レーン　ステージ${Number(g.finishedStage||g.stage||1)}　${new Date(g.finishedAt).toLocaleTimeString("ja-JP")}</div>`).join("")||"<div class='small'>まだありません</div>"}
+function renderRanking(){
+ const arr=finished().slice().sort((a,b)=>(a.finishedAt||0)-(b.finishedAt||0));
+ document.getElementById("ranking").innerHTML=arr.map((g,i)=>`${i+1}位：${esc(g.name)}（${esc(g.lane||"")}）`).join("<br>")||"<div class='small'>まだありません</div>";
+}
+function renderWaiting(){
+ document.getElementById("waitingList").innerHTML=waiting().map(g=>`<div class="group"><b>${esc(g.name)}</b>　希望：${esc(g.lane)}レーン
+ <div class="row" style="margin-top:7px"><button class="primary" onclick="guideWaiting('${g.id}')">案内済み</button><button class="danger" onclick="act('${g.id}','delete')">削除</button></div></div>`).join("")||"<div class='small'>待ち組はいません</div>";
+}
+function render(){if(isDisplayMode)return;renderSummary();renderLanes();renderFinished();renderRanking();renderWaiting()}
+function showNotice(t){const e=document.getElementById("notice");e.textContent=t;e.style.display="block";setTimeout(()=>e.style.display="none",1800)}
+async function addGroup(){
+ const name=document.getElementById("groupName").value.trim();if(!name)return alert("グループ名を入力してください。");
+ if(!await canOperate(null))return;
+ const id=groupsRef.push().key;
+ await groupsRef.child(id).set({id,name,kind:"group",lane:"",stage:1,limitMs:10*60*1000,remainingMs:10*60*1000,startAt:null,pausedAt:null,finishedAt:null,createdAt:Date.now()});
+ document.getElementById("groupName").value="";showNotice("追加しました");
+}
+async function addWaiting(){
+ const name=document.getElementById("waitingName").value.trim(),lane=document.getElementById("waitingLane").value;if(!name)return alert("名前を入力してください。");
+ if(!await canOperate(null))return;
+ const id=groupsRef.push().key;await groupsRef.child(id).set({id,name,kind:"waiting",lane,createdAt:Date.now()});document.getElementById("waitingName").value="";
+}
+async function guideWaiting(id){
+ const g=latestData.groups.find(x=>x.id===id);if(!g)return;
+ const lane=g.lane;if(!await canOperate(lane))return;
+ if(laneGroups(lane).length>=2)return alert("レーン"+lane+"は満員です。");
+ await groupsRef.child(id).update({kind:"group",stage:1,limitMs:10*60*1000,remainingMs:10*60*1000,startAt:null,pausedAt:null,finishedAt:null,createdAt:Date.now()});showNotice("レーン"+lane+"へ案内しました");
+}
+async function resetAllData(){if(!confirm("全データを消去します。よろしいですか？"))return;if(!await canOperate(null))return;await groupsRef.remove();showNotice("全データを消去しました")}
+async function act(id,action){
+ const g=latestData.groups.find(x=>x.id===id);if(!g)return;
+ let targetLane=g.lane||null;
+ if(action==="setLane"){const target=prompt("レーンを A / B / 空欄 で入力",g.lane||"");if(target===null)return;const lane=target.trim().toUpperCase();if(!["A","B",""].includes(lane))return alert("A、B、空欄のいずれかです。");if(lane&&lane!==g.lane&&laneGroups(lane).length>=2)return alert("レーン"+lane+"は満員です。");targetLane=lane||null}
+ if(action==="delete"&&!confirm("削除しますか？"))return;
+ if(!await canOperate(targetLane))return;
+ const ref=groupsRef.child(id),now=Date.now();
+ if(action==="plus"||action==="minus"){
+  const n=Math.max(1,Number(g.stage||1)+(action==="plus"?1:-1));await ref.update({stage:n});
+ }else if(action==="start"){
+  await ref.update({startAt:now,pausedAt:null,pausedByLane:null,remainingMs:getRemainingMs(g,now),resumedAt:now});
+ }else if(action==="stop"){
+  if(!g.startAt)return;await ref.update({remainingMs:getRemainingMs(g,now),startAt:null,pausedAt:now});
+ }else if(action==="resetStage"){
+  await ref.update({stage:1,finishedAt:null,finishedStage:null});
+ }else if(action==="resetTimer"){
+  await ref.update({remainingMs:getLimitMs(g)||10*60*1000,startAt:null,pausedAt:null,pausedByLane:null});
+ }else if(action==="setLimit"){
+  const min=prompt("制限時間を分で入力",String(Math.round(getLimitMs(g)/60000)||10));if(min===null)return;const ms=Math.max(1,Number(min))*60000;if(!Number.isFinite(ms))return alert("数字を入力してください。");await ref.update({limitMs:ms,remainingMs:ms,startAt:null,pausedAt:null,pausedByLane:null});
+ }else if(action==="setLane"){
+  await ref.update({lane:targetLane});
+ }else if(action==="delete"){
+  await ref.remove();
+ }
+}
+async function advanceLane(lane){
+ if(!await canOperate(lane))return;
+ const gs=laneGroups(lane);if(!gs.length)return;
+ const first=gs[0];if(!first.finishedAt)return;
+ await groupsRef.child(first.id).update({lane:"",finishedAt:null,startAt:null,remainingMs:getLimitMs(first)||10*60*1000});
+ const next=waiting().find(w=>w.lane===lane);if(next&&laneGroups(lane).length<2)await groupsRef.child(next.id).update({kind:"group",stage:1,limitMs:10*60*1000,remainingMs:10*60*1000,startAt:null,finishedAt:null,createdAt:Date.now()});
+}
+async function finishExpiredTimers(){
+ if(isDisplayMode)return;
+ const now=Date.now(),updates={};
+ latestData.groups.filter(g=>isGroup(g)&&g.startAt&&!g.finishedAt).forEach(g=>{
+  if(getRemainingMs(g,now)<=0){
+   updates["groups/"+g.id+"/remainingMs"]=0;updates["groups/"+g.id+"/startAt"]=null;updates["groups/"+g.id+"/finishedAt"]=now;updates["groups/"+g.id+"/finishedStage"]=Number(g.stage||1);
+  }
+ });
+ if(Object.keys(updates).length)await db.ref().update(updates);
+}
+groupsRef.on("value",s=>{latestData={groups:normalizeGroups(s.val())};if(isDisplayMode)renderDisplay();else render()});
+function renderDisplay(){
+ const lane=isDisplayMode.toUpperCase(),gs=laneGroups(lane),g=gs[0];
+ document.getElementById("displayLane").textContent="レーン "+lane;
+ document.getElementById("displayTeam").textContent=g?g.name:"待機中";
+ document.getElementById("displayStage").textContent=g?"ステージ "+Number(g.stage||1):"";
+ document.getElementById("displayTime").textContent=g?fmt(getRemainingMs(g)):"--:--";
+ document.getElementById("displayFinish").textContent=g?.finishedAt?"終了しました":"";
+}
+setInterval(()=>{if(isDisplayMode)renderDisplay();else{finishExpiredTimers();renderSummary();renderLanes()}},250);
+</script>
+</body>
+</html>
